@@ -137,7 +137,11 @@ template <class T, int size>
 Pointer<T, size>::~Pointer(){
     
     typename std::list<PtrDetails<T>>::iterator it = findPtrInfo(this->addr);
-    it->refcount--;
+    
+    if (it->refcount > 0) {
+        it->refcount--;
+    }
+    
     this->collect();
 }
 
@@ -149,22 +153,25 @@ bool Pointer<T, size>::collect(){
     bool freed = false;
 
     typename std::list<PtrDetails<T>>::iterator it = refContainer.begin();
+    do {
+        while (it != refContainer.end()) {
+            if (it->refcount > 0) {
+                it++;
+                continue;
+            }
 
-    while (it != refContainer.end()) {
-        if (it->refcount != 0) {
-            it++;
-            continue;
+            if (it->isArray) {
+                delete [] it->memPtr;
+            } else {
+                delete it->memPtr;
+            }
+
+            freed = true;
+            it = refContainer.erase(it);
+            
+            break;
         }
-
-        if (it->isArray) {
-            delete [] it->memPtr;
-        } else {
-            delete it->memPtr;
-        }
-
-        freed = true;
-        it = refContainer.erase(it);
-    }
+    } while (it != refContainer.end());
 
     return freed;
 }
